@@ -1,5 +1,119 @@
-﻿<h3>Index</h3>
+﻿@page "/Ventas"
+@page "/Ventas/Index"
+@inject VentasService ventasService
+@inject IToastService toast
+
+<PageTitle> Consulta de ventas </PageTitle>
+
+<div class="container mt-3">
+    <div class="card shadow-lg">
+        <div class="card-header">
+            <h5 class="card-title text-center"><strong> Consulta de ventas </strong></h5>
+        </div>
+
+        <div class="card-body">
+            <div class="row align-items-end">
+                <div class="col-12 col-md-2 mb-3">
+                    <label class="col-form-label"><strong> Venta Id </strong></label>
+                    <input type="number" class="form-control" @bind="VentaId" />
+                </div>
+
+                <div class="col-12 col-md-3 mb-3">
+                    <label class="col-form-label"><strong> Concepto </strong></label>
+                    <input type="text" class="form-control" placeholder="Observación" @bind="Concepto" />
+                </div>
+
+                <div class="col-12 col-md-2 mb-3">
+                    <label class="col-form-label"><strong> Fecha desde </strong></label>
+                    <input type="date" class="form-control" @bind="Desde" />
+                </div>
+
+                <div class="col-12 col-md-2 mb-3">
+                    <label class="col-form-label"><strong> Fecha hasta </strong></label>
+                    <input type="date" class="form-control" @bind="Hasta" />
+                </div>
+
+                <div class="col-12 col-md-3 mb-3 d-flex gap-2">
+                    <button type="button" class="btn btn-primary bi bi-search" @onclick="Buscar"> Buscar </button>
+                    <button type="button" class="btn btn-outline-secondary bi bi-eraser" @onclick="Limpiar"> Limpiar </button>
+                    <a class="btn btn-success bi bi-plus" href="/Ventas/Create"> Crear </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered table-light text-center">
+                    <thead>
+                        <tr>
+                            <th> Venta Id </th>
+                            <th> Fecha </th>
+                            <th> Observación </th>
+                            <th> Total </th>
+                            <th> Opciones </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var venta in Lista)
+                        {
+                            <tr>
+                                <td> @venta.VentaId </td>
+                                <td> @venta.Fecha.ToShortDateString() </td>
+                                <td> @venta.Observacion </td>
+                                <td> @venta.Total.ToString("N2") </td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary bi bi-pencil" href="/Ventas/Edit/@venta.VentaId"> Editar </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card-footer d-flex justify-content-between">
+            <label><strong> Conteo de registros: </strong> @Lista.Count</label>
+            <label><strong> Total vendido: </strong> @Lista.Sum(v => v.Total).ToString("N2")</label>
+        </div>
+    </div>
+</div>
 
 @code {
+    private int? VentaId { get; set; }
+    private string? Concepto { get; set; }
+    private DateTime? Desde { get; set; }
+    private DateTime? Hasta { get; set; }
+    private List<Ventas> Lista { get; set; } = new();
 
+    protected override async Task OnInitializedAsync()
+    {
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        if (Desde.HasValue && Hasta.HasValue && Desde > Hasta)
+        {
+            toast.ShowWarning("La fecha desde no puede ser mayor que la fecha hasta");
+            return;
+        }
+
+        var ventaId = VentaId;
+        var concepto = Concepto?.Trim();
+        var desde = Desde?.Date;
+        var hastaExclusivo = Hasta?.Date.AddDays(1);
+
+        Lista = await ventasService.Listar(v =>
+            (ventaId == null || v.VentaId == ventaId) &&
+            (string.IsNullOrEmpty(concepto) || v.Observacion.Contains(concepto)) &&
+            (desde == null || v.Fecha >= desde) &&
+            (hastaExclusivo == null || v.Fecha < hastaExclusivo));
+    }
+
+    private async Task Limpiar()
+    {
+        VentaId = null;
+        Concepto = null;
+        Desde = null;
+        Hasta = null;
+        await Buscar();
+    }
 }
