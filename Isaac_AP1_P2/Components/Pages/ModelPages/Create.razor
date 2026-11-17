@@ -1,5 +1,147 @@
-﻿<h3>Create</h3>
+﻿@page "/Ventas/Create"
+@inject VentasService ventasService
+@inject ProductosService productosService
+@inject NavigationManager navigation
+@inject IToastService toast
+
+<PageTitle> Registro de ventas </PageTitle>
+
+<div class="container mt-3">
+    <div class="card shadow-lg">
+        <div class="card-header">
+            <h5 class="card-title text-center"><strong> Registro de ventas </strong></h5>
+        </div>
+
+        <EditForm Model="Venta" OnValidSubmit="Guardar">
+            <DataAnnotationsValidator />
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-12 col-md-4 mb-3">
+                        <label class="col-form-label"><strong> Venta Id </strong></label>
+                        <InputNumber class="form-control" @bind-Value="Venta.VentaId" disabled />
+                    </div>
+
+                    <div class="col-12 col-md-4 mb-3">
+                        <label class="col-form-label"><strong> Fecha </strong></label>
+                        <InputDate class="form-control" @bind-Value="Venta.Fecha" />
+                        <ValidationMessage For="() => Venta.Fecha" />
+                    </div>
+
+                    <div class="col-12 col-md-4 mb-3">
+                        <label class="col-form-label"><strong> Observación </strong></label>
+                        <InputText class="form-control" @bind-Value="Venta.Observacion" />
+                        <ValidationMessage For="() => Venta.Observacion" />
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(MensajeError))
+                {
+                    <div class="alert alert-danger"> @MensajeError </div>
+                }
+
+                <div class="border border-success p-3 mt-3">
+                    <h5> Detalle de la venta </h5>
+
+                    <ProductoPicker ListaProductos="ListaProductos" OnAgregar="AgregarDetalle" />
+
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered table-light text-center">
+                            <thead>
+                                <tr>
+                                    <th> Producto </th>
+                                    <th> Cantidad </th>
+                                    <th> Precio </th>
+                                    <th> Importe </th>
+                                    <th> Opciones </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var detalle in Venta.VentasDetalle)
+                                {
+                                    <tr>
+                                        <td> @ListaProductos.FirstOrDefault(p => p.ProductoId == detalle.ProductoId)?.Descripcion </td>
+                                        <td> @detalle.Cantidad </td>
+                                        <td> @detalle.Precio.ToString("N2") </td>
+                                        <td> @((detalle.Cantidad * detalle.Precio).ToString("N2")) </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-dark bi bi-trash" @onclick="() => RemoverDetalle(detalle)"> Remover </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <label class="form-label"><strong> Conteo detalles: </strong> @Venta.VentasDetalle.Count</label>
+                    <label class="form-label ms-3"><strong> Total: </strong> @Venta.VentasDetalle.Sum(d => d.Cantidad * d.Precio).ToString("N2")</label>
+                </div>
+            </div>
+
+            <div class="card-footer d-flex justify-content-center gap-2">
+                <button type="submit" class="btn btn-primary bi bi-floppy"> Guardar </button>
+                <a class="btn btn-secondary bi bi-arrow-left" href="/Ventas/Index"> Regresar </a>
+            </div>
+        </EditForm>
+    </div>
+</div>
 
 @code {
+    private Ventas Venta { get; set; } = new();
+    private List<Productos> ListaProductos { get; set; } = new();
+    private string MensajeError { get; set; } = string.Empty;
 
+    protected override async Task OnInitializedAsync()
+    {
+        ListaProductos = await productosService.Listar(p => true);
+    }
+
+    private void AgregarDetalle((Productos Producto, int Cantidad) seleccion)
+    {
+        MensajeError = string.Empty;
+
+        var existente = Venta.VentasDetalle.FirstOrDefault(d => d.ProductoId == seleccion.Producto.ProductoId);
+
+        if (existente != null)
+        {
+            existente.Cantidad += seleccion.Cantidad;
+        }
+        else
+        {
+            Venta.VentasDetalle.Add(new VentasDetalle
+            {
+                ProductoId = seleccion.Producto.ProductoId,
+                Cantidad = seleccion.Cantidad,
+                Precio = seleccion.Producto.Precio
+            });
+        }
+    }
+
+    private void RemoverDetalle(VentasDetalle detalle)
+    {
+        Venta.VentasDetalle.Remove(detalle);
+    }
+
+    private async Task Guardar()
+    {
+        if (Venta.VentasDetalle.Count == 0)
+        {
+            MensajeError = "Debe agregar al menos un producto al detalle";
+            toast.ShowWarning(MensajeError);
+            return;
+        }
+
+        Venta.Total = Venta.VentasDetalle.Sum(d => d.Cantidad * d.Precio);
+
+        var resultado = await ventasService.Guardar(Venta);
+
+        if (resultado.Ok)
+        {
+            toast.ShowSuccess(resultado.Mensaje);
+            navigation.NavigateTo("/Ventas/Index");
+        }
+        else
+        {
+            toast.ShowError(resultado.Mensaje);
+        }
+    }
 }
