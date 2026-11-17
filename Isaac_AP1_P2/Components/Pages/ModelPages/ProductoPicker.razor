@@ -1,0 +1,68 @@
+﻿@inject IToastService toast
+
+<div class="row align-items-end">
+    <div class="col-12 col-md-4 mb-3">
+        <label class="col-form-label"><strong> Producto </strong></label>
+        <select class="form-select" @bind="ProductoId" @bind:after="OnProductoChanged">
+            <option value="0"> Seleccione producto </option>
+            @foreach (var producto in ListaProductos)
+            {
+                <option value="@producto.ProductoId"> @producto.Descripcion (Stock: @producto.Stock) </option>
+            }
+        </select>
+    </div>
+
+    <div class="col-12 col-md-3 mb-3">
+        <label class="col-form-label"><strong> Cantidad </strong></label>
+        <input type="number" min="1" class="form-control" @bind="Cantidad" />
+    </div>
+
+    <div class="col-12 col-md-3 mb-3">
+        <label class="col-form-label"><strong> Precio </strong></label>
+        <label class="form-control">@Precio.ToString("N2")</label>
+    </div>
+
+    <div class="col-12 col-md-2 mb-3">
+        <button type="button" class="btn btn-success bi bi-plus w-100" @onclick="Agregar"> Agregar </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<Productos> ListaProductos { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<(Productos Producto, int Cantidad)> OnAgregar { get; set; }
+
+    private int ProductoId { get; set; }
+    private int Cantidad { get; set; } = 1;
+    private decimal Precio { get; set; }
+
+    private void OnProductoChanged()
+    {
+        var producto = ListaProductos.FirstOrDefault(p => p.ProductoId == ProductoId);
+        Precio = producto?.Precio ?? 0;
+    }
+
+    private async Task Agregar()
+    {
+        if (ProductoId == 0)
+        {
+            toast.ShowWarning("Seleccione un producto");
+            return;
+        }
+
+        if (Cantidad <= 0)
+        {
+            toast.ShowWarning("La cantidad debe ser mayor que 0");
+            return;
+        }
+
+        var producto = ListaProductos.Single(p => p.ProductoId == ProductoId);
+        await OnAgregar.InvokeAsync((producto, Cantidad));
+
+        ProductoId = 0;
+        Cantidad = 1;
+        Precio = 0;
+    }
+}
