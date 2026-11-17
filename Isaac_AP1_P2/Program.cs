@@ -1,5 +1,8 @@
 using Isaac_AP1_P2.Components;
 using Blazored.Toast;
+using Isaac_AP1_P2.DAL;
+using Isaac_AP1_P2.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +11,15 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddBlazoredToast();
+
+var connStr = builder.Configuration.GetConnectionString("SqlConStr");
+
+builder.Services.AddDbContextFactory<Contexto>(options => options.UseSqlServer(connStr));
+
+builder.Services.AddBlazoredToast();
+
+builder.Services.AddScoped<ProductosService>();
+builder.Services.AddScoped<VentasService>();
 
 var app = builder.Build();
 
